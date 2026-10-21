@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Add a training set | USP At Risk Tracker{% endblock %}
+{% block crumbs %}Admin / <a href="{{ url_for('admin_home', _anchor='library') }}">Training library</a> / <b>Add a training set</b>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Add a training set</h1>
+    <p class="sub-title">A file of past results with final grades. It joins the training history, the model retrains, and
+      predictions for every course's marksheet use it.</p>
+  </div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <form method="post" enctype="multipart/form-data">
+      <div class="field"><label for="name">Name</label>
+        <input id="name" type="text" name="name" value="{{ form.name }}" maxlength="{{ name_max }}" required list="sets"
+               placeholder="IS413 past results" style="width:100%">
+        <datalist id="sets">{% for c in sets %}<option value="{{ c.name }}">{% endfor %}</datalist>
+        <div class="hint">{{ name_max }} characters or fewer. Using the name of an existing set adds this file to it as another cohort.</div></div>
+      <div class="field"><label for="cohort">Cohort or year <span class="muted" style="font-weight:400">(optional)</span></label>
+        <input id="cohort" type="text" name="cohort" value="{{ form.cohort }}" placeholder="Semester 1, 2025" style="width:100%"></div>
+      <div class="field"><label for="file">File (.csv or .xlsx)</label><input id="file" type="file" name="file" accept=".csv,.xlsx,.xls" required></div>
+      <button class="btn btn-primary">Read the file</button>
+      <a class="btn btn-ghost" href="{{ url_for('admin_home', _anchor='library') }}">Cancel</a>
+    </form>
+  </section>
+  <section class="card">
+    <h2>What the file needs</h2>
+    <ul class="reason-list small">
+      <li>One row per student, one column per assessment, and a final grade or final mark column.</li>
+      <li>Any layout works: the columns are detected and you check them on the next screen. Missing weights, maximum
+        marks or student IDs are worked out from the file and shown to you, never a reason to reject it.</li>
+      <li>A column that is only the total of other columns (such as continuous assessment) is detected and not counted twice.</li>
+      <li>After you save, the model retrains in the background{% if not training_enabled %} (switched off on this copy){% endif %}.</li>
+    </ul>
+    <p class="small"><b>Privacy:</b> student IDs are replaced with codes when you save. Names and other personal columns are never stored.</p>
+    <div class="row"><a class="btn btn-sm" href="{{ url_for('admin_template', kind='historical') }}">Example layout</a></div>
+  </section>
+</div>
+{% endblock %}

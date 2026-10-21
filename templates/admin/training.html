@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Training data | USP At Risk Tracker{% endblock %}
+{% block crumbs %}Admin / <b>Training data</b>{% endblock %}
+{% block content %}
+<!--<div class="page-head">-->
+<!--  <div>-->
+<!--    <h1>Training data</h1>-->
+<!--    <p class="sub-title">Past cohorts with known final results, from any course. They train one model that predicts for every course,-->
+<!--      including courses lecturers add later with no history of their own.</p>-->
+<!--  </div>-->
+<!--  <div class="row"><a class="btn" href="{{ url_for('model_view') }}">How predictions work</a></div>-->
+<!--</div>-->
+
+<div class="grid grid-3 mb">
+  <div class="kpi accent"><div class="label">Past students</div><div class="value">{{ '{:,}'.format(library|sum(attribute='history.n')) }}</div><div class="note">from {{ library|length }} course(s)</div></div>
+  <div class="kpi"><div class="label">Active model</div><div class="value" style="font-size:18px">{% if version %}v{{ version.id }}{% else %}none{% endif %}</div>
+    <div class="note">{% if training %}a new version is training{% elif version %}{{ '{:,}'.format(version.summary.n_students) }} students, ROC AUC {{ version.summary.headline_auc }}{% else %}{{ readiness }}{% endif %}</div></div>
+  <div class="kpi"><div class="label">Ready to train</div><div class="value" style="font-size:18px">{{ 'Yes' if ready else 'Not yet' }}</div><div class="note">{{ readiness }}</div></div>
+</div>
+
+<div class="split">
+  <section class="card">
+    <h2>Upload past results</h2>
+    <form method="post" enctype="multipart/form-data">
+      <div class="field"><label for="code">Course code the results come from</label>
+        <input id="code" type="text" name="code" value="{{ code }}" list="codes" placeholder="IS413" required style="width:100%">
+        <datalist id="codes">{% for c in teaching %}<option value="{{ c.code }}">{{ c.name }}</option>{% endfor %}
+          {% for l in library %}<option value="{{ l.course.code }}">{{ l.course.name }}</option>{% endfor %}</datalist>
+        <div class="hint">Use the same code as a teaching course to make its predictions a closer match. Any other code
+          (an older course, another campus) still adds to the shared model.</div></div>
+      <div class="field"><label for="name">Course name <span class="muted" style="font-weight:400">(optional, for a new code)</span></label>
+        <input id="name" type="text" name="name" style="width:100%"></div>
+      <div class="field"><label for="label">Cohort name <span class="muted" style="font-weight:400">(optional)</span></label>
+        <input id="label" type="text" name="label" placeholder="Semester 1, 2025" style="width:100%">
+        <div class="hint">Uploading again with the same cohort name keeps the earlier version, so you can roll back.</div></div>
+      <div class="field"><label for="file">File (.csv or .xlsx)</label><input id="file" type="file" name="file" accept=".csv,.xlsx,.xls" required></div>
+      <button class="btn btn-primary">Read the file</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>What the file needs</h2>
+    <ul class="reason-list small">
+      <li>One row per student and one column per assessment, with the weight in the heading, as for this semester's marks.</li>
+      <li>A <span class="mono">final_grade</span> (A+ to D, or Pass/Fail) or <span class="mono">final_mark</span> column for every student.</li>
+      <li>Several cohorts can share one file with a <span class="mono">cohort</span> or <span class="mono">semester</span> column.</li>
+      <li>After you save, the model retrains in the background{% if not training_enabled %} (switched off on this copy){% endif %}.
+        Every course's predictions then use the new version.</li>
+    </ul>
+    <p class="small"><b>Privacy:</b> student IDs are replaced with codes when you save. Names and other personal columns are never stored.</p>
+    <div class="row"><a class="btn btn-sm" href="{{ url_for('admin_template', kind='historical') }}">Template for past cohorts</a></div>
+  </section>
+</div>
+
+<div class="card mt">
+  <h2>Training library</h2>
+  <table>
+    <thead><tr><th>Course</th><th class="num">Past students</th><th class="num">Cohorts</th><th class="num">Pass rate</th><th>In the active model</th><th></th></tr></thead>
+    <tbody>{% for l in library %}
+      <tr><td><b>{{ l.course.code }}</b> <span class="small muted">{{ l.course.name }}</span></td>
+        <td class="num">{{ '{:,}'.format(l.history.n) }}</td><td class="num">{{ l.history.cohorts }}</td>
+        <td class="num">{{ '%.0f'|format(l.history.pass_rate * 100) ~ '%' if l.history.pass_rate is not none else '-' }}</td>
+        <td>{% if version and l.course.code in version.summary.get('courses', []) %}<span class="badge badge-success">Yes</span>{% elif l.history.n %}<span class="badge badge-warning">After the next training</span>{% else %}<span class="badge badge-neutral">No results</span>{% endif %}</td>
+        <td><a class="btn btn-sm" href="{{ url_for('admin_course', course_id=l.course.id) }}">Versions</a></td></tr>
+    {% else %}<tr><td colspan="6" class="muted" style="padding:22px">No past results yet. Upload a cohort above to train the model.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}
